@@ -13,6 +13,14 @@ claujson..., Experimental, some environment. using simdjson/simdjson, Mimalloc.
 ```
 # And Added KEY to simdjson::internal::tape_type.
 # And Added some code to check KEY.
+```c++
+    simdjson_really_inline uint8_t *tape_builder::on_start_string(json_iterator &iter, bool is_key) noexcept {
+        // we advance the point, accounting for the fact that we have a NULL termination
+        tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), is_key? internal::tape_type::KEY : internal::tape_type::STRING);
+        return current_string_buf_loc + sizeof(uint32_t);
+    }
+
+```
 
 # Parallel Parsing. (using std::thread)
 
