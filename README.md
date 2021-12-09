@@ -1,5 +1,5 @@
 # SimdClauJson3
-claujson...
+claujson..., Experimental, some environment.
 
 # Just Added to simdjson/simdjson // to parser class
   ```c++  
