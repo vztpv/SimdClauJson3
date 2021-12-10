@@ -25,15 +25,12 @@ int main(int argc, char* argv[])
 	std::cout << "total " << b - a << "ms\n";
 
 	//claujson::LoadData::_save(std::cout, &ut);
-	//claujson::LoadData::save("output.json", ut);
-	
-	poolManager.Clear();
+	claujson::LoadData::save("output.json", ut);
 
 	bool ok = nullptr != x;
-	
-	if (x) {
-		free(x);
-	}
 
+	ut.remove_all(poolManager);
+	poolManager.Clear();
+	
 	return !ok;
 }

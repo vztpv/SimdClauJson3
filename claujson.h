@@ -489,6 +489,8 @@ namespace claujson {
 		}
 
 	private:
+
+		//todo..
 		void remove_all(UserType* ut) {
 			for (size_t i = 0; i < ut->data.size(); ++i) {
 				if (ut->data[i]) {
@@ -497,6 +499,7 @@ namespace claujson {
 				}
 			}
 			ut->data.clear();
+			ut->value = Data();
 		}
 
 		void remove_all() {
@@ -811,7 +814,7 @@ namespace claujson {
 
 			// check!!
 			while (ut->get_data_size() >= 1
-				&& (ut->get_data_list(0)->is_user_type()) && ((UserType*)ut->get_data_list(0))->is_virtual())
+				&& (ut->get_data_list(0)->is_user_type()) && (ut->get_data_list(0))->is_virtual())
 			{
 				ut = (UserType*)ut->get_data_list(0);
 			}
@@ -844,7 +847,8 @@ namespace claujson {
 						}
 					}
 					else { // item type.
-						if (_ut->get_data_list(i)->get_value().is_key) { //  get_data2_list(0).is_key()) {
+						if (_ut->get_data_list(i)->get_value().is_key) { 
+							
 							_next->LinkItemType(std::move(_ut->get_data_list(i)), std::move(_ut->get_data_list(i + 1)));
 							++i;
 						}
@@ -913,7 +917,6 @@ namespace claujson {
 
 				uint64_t payload = (token_arr[token_arr_start + i]) & simdjson::internal::JSON_VALUE_MASK;
 
-				//std::cout << (int)type << "\n";
 
 				switch (state)
 				{
@@ -1005,11 +1008,6 @@ namespace claujson {
 
 							for (size_t i = 0; i < nestedUT[braceNum]->get_data_size(); ++i) {
 								ut.get_data_list(0)->add_user_type(nestedUT[braceNum]->get_data_list(i));
-
-								if (nestedUT[braceNum]->get_data_list(i)->is_user_type()) {
-									nestedUT[braceNum]->get_data_list(i)->parent = ut.get_data_list(0);
-								}
-
 								nestedUT[braceNum]->get_data_list(i) = nullptr;
 							}
 
@@ -1201,7 +1199,7 @@ namespace claujson {
 				if (next_is_valid && a + 1 <= last) {
 					auto& x = token_arr[a + 1];
 					const simdjson::internal::tape_type next_type = static_cast<simdjson::internal::tape_type>(x >> 56);
-					
+
 					if (next_type == simdjson::internal::tape_type('}')
 						|| next_type == simdjson::internal::tape_type(']')) {
 						return a + 1;
@@ -1342,7 +1340,7 @@ namespace claujson {
 							}
 						}
 
-						int start = 0;
+						int start = 0; 
 						int last = pivots.size() - 1 - 1;
 
 						for (int i = 0; i < pivots.size() - 1; ++i) {
