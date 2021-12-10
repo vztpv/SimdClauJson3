@@ -35,12 +35,14 @@ namespace claujson {
 			FROM_NEW   // new + delete.
 		};
 
+		explicit PoolManager() { }
+
 		explicit PoolManager(UserType* pool, std::vector<Block>&& blocks) {
 			this->pool = pool;
 			this->blocks = std::move(blocks);
 		}
 
-		void Clear();
+		inline void Clear();
 
 		// init - first time only Blocks... -> no Blocks... ?
 		void AddBlock(uint64_t start, uint64_t size) {
@@ -737,7 +739,10 @@ namespace claujson {
 	};
 
 
-	void PoolManager::Clear() {
+	inline void PoolManager::Clear() {
+		if (pool) {
+			free(pool); //
+		}
 		pool = nullptr;
 		blocks.clear();
 		dead_list_start = nullptr;
@@ -804,7 +809,7 @@ namespace claujson {
 		static int Merge(class UserType* next, class UserType* ut, class UserType** ut_next)
 		{
 
-			//check!!
+			// check!!
 			while (ut->get_data_size() >= 1
 				&& (ut->get_data_list(0)->is_user_type()) && ((UserType*)ut->get_data_list(0))->is_virtual())
 			{
@@ -831,6 +836,9 @@ namespace claujson {
 							//_ut->get_user_type_list(i)->used();
 						}
 						else {
+							if (_next->is_array() && _ut->get_data_list(i)->get_value().is_key) {
+								std::cout << "chk ";
+							}
 							_next->LinkUserType((UserType*)_ut->get_data_list(i));
 							_ut->get_data_list(i) = nullptr;
 						}
@@ -996,27 +1004,17 @@ namespace claujson {
 							++pool;
 
 							for (size_t i = 0; i < nestedUT[braceNum]->get_data_size(); ++i) {
-								if (nestedUT[braceNum]->is_user_type()) {
-									((UserType*)ut.get_data_list(0))->add_user_type((UserType*)(nestedUT[braceNum]->get_data_list(i)));
-									nestedUT[braceNum]->get_data_list(i) = nullptr;
+								ut.get_data_list(0)->add_user_type(nestedUT[braceNum]->get_data_list(i));
+
+								if (nestedUT[braceNum]->get_data_list(i)->is_user_type()) {
+									nestedUT[braceNum]->get_data_list(i)->parent = ut.get_data_list(0);
 								}
-								else {
-									if (type == simdjson::internal::tape_type::END_OBJECT) { //nestedUT[braceNum]->get_data2_list(0).is_key()) {
-										((UserType*)ut.get_data_list(0))->add_item_type(pool, std::move((nestedUT[braceNum]->get_data_list(i)->value)),
-											std::move((nestedUT[braceNum]->get_data_list(i + 1)->value)));
-										++i;
-										++pool;
-										++pool;
-									}
-									else {
-										((UserType*)ut.get_data_list(0))->add_item_type(pool, std::move((nestedUT[braceNum]->get_data_list(i)->value)));
-										++pool;
-									}
-								}
+
+								nestedUT[braceNum]->get_data_list(i) = nullptr;
 							}
 
 							nestedUT[braceNum]->remove_all();
-							nestedUT[braceNum]->add_user_type((UserType*)(ut.get_data_list(0)));
+							nestedUT[braceNum]->add_user_type(ut.get_data_list(0));
 
 							ut.get_data_list(0) = nullptr;
 
@@ -1201,7 +1199,16 @@ namespace claujson {
 				}
 
 				if (next_is_valid && a + 1 <= last) {
-					return a + 1;
+					auto& x = token_arr[a + 1];
+					const simdjson::internal::tape_type next_type = static_cast<simdjson::internal::tape_type>(x >> 56);
+					
+					if (next_type == simdjson::internal::tape_type('}')
+						|| next_type == simdjson::internal::tape_type(']')) {
+						return a + 1;
+					}
+					if (next_type == simdjson::internal::tape_type::KEY) {
+						return a + 1;
+					}
 				}
 			}
 			return -1;
@@ -1209,7 +1216,7 @@ namespace claujson {
 	public:
 
 		static bool _LoadData(claujson::UserType* pool, class UserType& global, const std::unique_ptr<uint8_t[]>& string_buf, const std::unique_ptr<uint64_t[]>& token_arr, int64_t& length,
-			const std::vector<int>& key, std::vector<int64_t>& start, const int parse_num, std::vector<Block>& blocks) // first, strVec.empty() must be true!!
+			std::vector<int64_t>& start, const int parse_num, std::vector<Block>& blocks) // first, strVec.empty() must be true!!
 		{
 			const int pivot_num = parse_num - 1;
 			//size_t token_arr_len = length; // size?
@@ -1420,8 +1427,8 @@ namespace claujson {
 			return true;
 		}
 		static bool parse(claujson::UserType* pool, class UserType& global, const std::unique_ptr<uint8_t[]>& string_buf, const std::unique_ptr<uint64_t[]>& tokens, 
-			int64_t length, const std::vector<int>& key, std::vector<int64_t>& start, int thr_num, std::vector<Block>& blocks) {
-			return LoadData::_LoadData(pool, global, string_buf, tokens, length, key, start, thr_num, blocks);
+			int64_t length, std::vector<int64_t>& start, int thr_num, std::vector<Block>& blocks) {
+			return LoadData::_LoadData(pool, global, string_buf, tokens, length, start, thr_num, blocks);
 		}
 
 		//
@@ -1475,47 +1482,25 @@ namespace claujson {
 								stream << " : ";
 							}
 						}
-						else if (x.type == simdjson::internal::tape_type::TRUE_VALUE) {
-							stream << "true";
+						else {
+							std::cout << "Error : no key\n";
 						}
-						else if (x.type == simdjson::internal::tape_type::FALSE_VALUE) {
-							stream << "false";
-						}
-						else if (x.type == simdjson::internal::tape_type::DOUBLE) {
-							stream << std::fixed << std::setprecision(6) << (x.float_val);
-						}
-						else if (x.type == simdjson::internal::tape_type::INT64) {
-							stream << x.int_val;
-						}
-						else if (x.type == simdjson::internal::tape_type::UINT64) {
-							stream << x.uint_val;
-						}
-						else if (x.type == simdjson::internal::tape_type::NULL_VALUE) {
-							stream << "null ";
-						}
-
 						stream << " ";
 
-						if (ut->get_data_list(i)->is_user_type()) {
-							if (((UserType*)ut->get_data_list(i))->is_object()) {
-								stream << " { \n";
-							}
-							else {
-								stream << " [ \n";
-							}
-
-							_save(stream, (UserType*)ut->get_data_list(i), depth + 1);
-
-							if (((UserType*)ut->get_data_list(i))->is_object()) {
-								stream << " } \n";
-							}
-							else {
-								stream << " ] \n";
-							}
+						if (((UserType*)ut->get_data_list(i))->is_object()) {
+							stream << " { \n";
+						}
+						else {
+							stream << " [ \n";
 						}
 
-						if (i < ut->get_data_size() - 1) {
-							stream << ",";
+						_save(stream, (UserType*)ut->get_data_list(i), depth + 1);
+
+						if (((UserType*)ut->get_data_list(i))->is_object()) {
+							stream << " } \n";
+						}
+						else {
+							stream << " ] \n";
 						}
 					}
 					else {
@@ -1645,26 +1630,25 @@ namespace claujson {
 
 							++i;
 						}
-
-
-						if (i < ut->get_data_size() - 1) {
-							stream << ", ";
-						}
+					}
+					
+					if (i < ut->get_data_size() - 1) {
+						stream << ", ";
 					}
 				}
 			}
-			else {
+			else if (ut->is_array()) {
 				for (size_t i = 0; i < ut->get_data_size(); ++i) {
 					if (ut->get_data_list(i)->is_user_type()) {
 
-						{
-							if (((UserType*)ut->get_data_list(i))->is_object()) {
-								stream << " { \n";
-							}
-							else {
-								stream << " [ \n";
-							}
+
+						if (((UserType*)ut->get_data_list(i))->is_object()) {
+							stream << " { \n";
 						}
+						else {
+							stream << " [ \n";
+						}
+
 
 						_save(stream, (UserType*)ut->get_data_list(i), depth + 1);
 
@@ -1791,7 +1775,7 @@ namespace claujson {
 
 
 			std::vector<int64_t> start(thr_num + 1, 0);
-			std::vector<int> key;
+			//std::vector<int> key;
 			int64_t length;
 			int a = clock();
 
@@ -1810,7 +1794,7 @@ namespace claujson {
 					how_many = size_t(tape_val & simdjson::internal::JSON_VALUE_MASK);
 					length = how_many;
 
-					key = std::vector<int>(how_many, 0);
+					//key = std::vector<int>(how_many, 0);
 				}
 				else {
 					// Error: no starting root node?
@@ -1962,7 +1946,7 @@ namespace claujson {
 
 			pool = (claujson::UserType*)calloc(length, sizeof(claujson::UserType));
 
-			claujson::LoadData::parse(pool, *ut, string_buf, tape, length, key, start, thr_num, blocks); // 0 : use all thread..
+			claujson::LoadData::parse(pool, *ut, string_buf, tape, length, start, thr_num, blocks); // 0 : use all thread..
 
 			int c = clock();
 			std::cout << c - b << "ms\n";
