@@ -93,6 +93,7 @@ namespace claujson {
 					return this->str_val == other.str_val;
 					break;
 				}
+				return true;
 			}
 			return false;
 		}
@@ -414,7 +415,7 @@ namespace claujson {
 			//
 		}
 		virtual ~UserType() {
-			// remove_all();
+			value = Data();
 		}
 	public:
 
@@ -842,7 +843,7 @@ namespace claujson {
 							if (_next->is_array() && _ut->get_data_list(i)->get_value().is_key) {
 								std::cout << "chk ";
 							}
-							_next->LinkUserType((UserType*)_ut->get_data_list(i));
+							_next->LinkUserType(_ut->get_data_list(i));
 							_ut->get_data_list(i) = nullptr;
 						}
 					}
@@ -980,13 +981,14 @@ namespace claujson {
 					else if (type == simdjson::internal::tape_type::END_OBJECT ||
 						type == simdjson::internal::tape_type::END_ARRAY) {
 
-						state = 0;
+						state = 0; 
 
 						if (!Vec.empty()) {
 							if (type == simdjson::internal::tape_type::END_OBJECT) {
 								for (size_t x = 0; x < Vec.size(); x += 2) {
 									nestedUT[braceNum]->add_item_type(pool, std::move(Vec[x]), std::move(Vec[x + 1]));
 									++pool; ++pool;
+									
 								}
 							}
 							else { // END_ARRAY
@@ -1047,15 +1049,12 @@ namespace claujson {
 							Data data = Convert(&(token_arr[token_arr_start + i]), string_buf);
 							
 							if (data.is_key) {
-
-								key = data;
-
 								const simdjson::internal::tape_type _type =
 									static_cast<simdjson::internal::tape_type>((((token_arr)[token_arr_start + i + 1]) >> 56));
 								
 								
 								if (_type == simdjson::internal::tape_type::START_ARRAY || _type == simdjson::internal::tape_type::START_OBJECT) {
-									//
+									key = data;
 								}
 								else {
 									Vec.push_back(data);
