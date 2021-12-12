@@ -270,13 +270,13 @@ namespace claujson {
 	public:
 
 
-		inline static UserType* make_object(PoolManager& manager, const Data& x) {
+		inline static UserType* make_object(PoolManager& manager, Data&& x) {
 			UserType* temp = manager.Alloc();
 			new (temp) UserType(std::move(x), 0);
 			return temp;
 		}
 		
-		inline static UserType* make_array(PoolManager& manager, const Data& x) {
+		inline static UserType* make_array(PoolManager& manager, Data&& x) {
 			UserType* temp = manager.Alloc();
 			new (temp) UserType(std::move(x), 1);
 			return temp;
