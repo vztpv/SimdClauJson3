@@ -61,30 +61,25 @@ namespace claujson {
 
 		bool is_key = false;
 
-		union {
-			long long int_val;
-			unsigned long long uint_val;
-			double float_val;
-		};
-		STRING str_val;
+		long long int_val;
+		unsigned long long uint_val;
+		double float_val;
+		
+		std::string str_val; // const
+		
+
 
 		Data(const Data& other)
-			: type(other.type), int_val(other.int_val), str_val(other.str_val), is_key(other.is_key) {
+			: type(other.type), int_val(other.int_val), uint_val(other.uint_val), float_val(other.float_val), str_val(other.str_val), is_key(other.is_key) {
 
 		}
 
 		Data(Data&& other)
-			: type(other.type), int_val(other.int_val), str_val(std::move(other.str_val)), is_key(other.is_key) {
+			: type(other.type), int_val(other.int_val), uint_val(other.uint_val), float_val(other.float_val), str_val(std::move(other.str_val)), is_key(other.is_key) {
 
 		}
 
 		Data() : int_val(0), type(simdjson::internal::tape_type::ROOT) { } // here used as ERROR - ROOT
-
-		Data(simdjson::internal::tape_type _type, long long _number_val, STRING&& _str_val)
-			:type(_type), int_val(_number_val), str_val(std::move(_str_val))
-		{
-			
-		}
 
 		bool operator==(const Data& other) const {
 			if (this->type == other.type) {
@@ -116,6 +111,8 @@ namespace claujson {
 
 			this->type = other.type;
 			this->int_val = other.int_val;
+			this->uint_val = other.uint_val;
+			this->float_val = other.float_val;
 			this->str_val = other.str_val;
 			this->is_key = other.is_key;
 
@@ -129,7 +126,9 @@ namespace claujson {
 			}
 
 			this->type = other.type;
-			this->int_val = other.int_val;
+			this->int_val = other.int_val; 
+			this->uint_val = other.uint_val;
+			this->float_val = other.float_val;
 			this->str_val = std::move(other.str_val);
 			std::swap(this->is_key, other.is_key);
 
@@ -196,10 +195,10 @@ namespace claujson {
 		switch (type) {
 		case '"': // we have a string
 			std::memcpy(&string_length, string_buf.get() + payload, sizeof(uint32_t));
-			data.str_val = (std::string(
+			data.str_val = std::string(
 				reinterpret_cast<const char*>(string_buf.get() + payload + sizeof(uint32_t)),
 				string_length
-			));
+			);
 
 			break;
 		case 'l': // we have a long int
@@ -262,7 +261,7 @@ namespace claujson {
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
 			return pool;
 		}
-
+		
 		inline UserType* make_item_type(UserType* pool, claujson::Data&& value) const {
 			new (pool) UserType(std::move(value), 4);
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
@@ -273,13 +272,13 @@ namespace claujson {
 
 		inline static UserType* make_object(PoolManager& manager, const Data& x) {
 			UserType* temp = manager.Alloc();
-			new (temp) UserType(x, 0);
+			new (temp) UserType(std::move(x), 0);
 			return temp;
 		}
 		
 		inline static UserType* make_array(PoolManager& manager, const Data& x) {
 			UserType* temp = manager.Alloc();
-			new (temp) UserType(x, 1);
+			new (temp) UserType(std::move(x), 1);
 			return temp;
 		}
 
@@ -306,7 +305,7 @@ namespace claujson {
 
 			return temp;
 		}
-
+		
 	private:
 		UserType* next_dead = nullptr; // for linked list.
 		
@@ -363,6 +362,7 @@ namespace claujson {
 			}
 		}
 		
+
 		UserType(UserType&& other) {
 			value = std::move(other.value);
 			this->data = std::move(other.data);
@@ -405,7 +405,7 @@ namespace claujson {
 		{
 
 		}
-
+		
 		UserType(const claujson::Data& value, int type = -1) : value(value), type(type)
 		{
 			//
@@ -458,7 +458,7 @@ namespace claujson {
 			this->data.push_back(make_item_type(manager.Alloc(), name));
 			this->data.push_back(make_item_type(manager.Alloc(), data));
 		}
-
+		
 		void add_array_element(PoolManager& manager, const claujson::Data& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
@@ -574,62 +574,62 @@ namespace claujson {
 
 	private:
 
-		void add_user_type(UserType* ut) {
+		__forceinline void add_user_type(UserType* ut) {
 			this->data.push_back(ut);
 			ut->parent = this;
 		}
 
 
-		static UserType make_none() {
+		__forceinline static UserType make_none() {
 			Data temp;
 			temp.str_val = "";
 			temp.type = simdjson::internal::tape_type::STRING;
 
-			UserType ut(temp, -2);
+			UserType ut(std::move(temp), -2);
 
 			return ut;
 		}
 
-		bool is_virtual() const {
+		__forceinline bool is_virtual() const {
 			return type == 2 || type == 3;
 		}
 
-		static UserType make_virtual_object() {
+		__forceinline static UserType make_virtual_object() {
 			UserType ut;
 			ut.type = 2;
 			return ut;
 		}
 
-		static UserType make_virtual_array() {
+		__forceinline static UserType make_virtual_array() {
 			UserType ut;
 			ut.type = 3;
 			return ut;
 		}
-
-		void add_user_type(UserType* pool, const Data& name, int type) {
+		
+		__forceinline void add_user_type(UserType* pool, const Data& name, int type) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 			// todo - chk this->type == -1 .. one object or one array or data(true or false or null or string or number).
 
 
-			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_user_type";
-			}
+			//if (this->type == -1 && this->data.size() >= 1) {
+			//	throw "Error not valid json in add_user_type";
+			//}
 
 			this->data.push_back(make_user_type(pool, name, type));
 
 			((UserType*)this->data.back())->parent = this;
 		}
-
-		void add_user_type(UserType* pool, int type) {
+		
+		__forceinline void add_user_type(UserType* pool, int type) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 			// todo - chk this->type == -1 .. one object or one array or data(true or false or null or string or number).
 
 
-			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_user_type";
-			}
+			//if (this->type == -1 && this->data.size() >= 1) {
+			//	throw "Error not valid json in add_user_type";
+			//}
 
 			this->data.push_back(make_user_type(pool, type));
 
@@ -637,80 +637,81 @@ namespace claujson {
 			
 		}
 
-		void add_user_type(UserType* pool, Data&& name, int type) {
+		__forceinline void add_user_type(UserType* pool, Data&& name, int type) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 			// todo - chk this->type == -1 .. one object or one array or data(true or false or null or string or number).
 
-			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_user_type";
-			}
+			//if (this->type == -1 && this->data.size() >= 1) {
+			//	throw "Error not valid json in add_user_type";
+			//}
 
 			this->data.push_back(make_user_type(pool, std::move(name), type));
 			((UserType*)this->data.back())->parent = this;
 		}
 
 		// add item_type in object? key = value
-		void add_item_type(UserType* pool, Data&& name, claujson::Data&& data) {
+		__forceinline void add_item_type(UserType* pool, Data&& name, claujson::Data&& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
-			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_item_type";
-			}
+			//if (this->type == -1 && this->data.size() >= 1) {
+			//	throw "Error not valid json in add_item_type";
+			//}
 
 			{
-				this->data.push_back(make_item_type(pool, name));
+				this->data.push_back(make_item_type(pool, std::move(name)));
 			}
 
 			this->data.push_back(make_item_type(pool + 1, std::move(data)));
 		}
 
-		void add_item_type(UserType* pool, claujson::Data&& data) {
+		__forceinline void add_item_type(UserType* pool, claujson::Data&& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
-			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_item_type";
-			}
+			//if (this->type == -1 && this->data.size() >= 1) {
+			//	throw "Error not valid json in add_item_type";
+			//}
 
 			this->data.push_back(make_item_type(pool, std::move(data)));
 		}
 
-		void add_item_type(UserType* pool, const Data& name, claujson::Data&& data) {
+		__forceinline void add_item_type(UserType* pool, const Data& name, claujson::Data&& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
-			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_item_type";
-			}
+			//if (this->type == -1 && this->data.size() >= 1) {
+			//	throw "Error not valid json in add_item_type";
+			//}
 
 			this->data.push_back(make_item_type(pool, name));
 			this->data.push_back(make_item_type(pool + 1, std::move(data)));
 		}
 
-		void add_item_type(UserType* pool, const Data& name, const claujson::Data& data) {
+		__forceinline void add_item_type(UserType* pool, const Data& name, const claujson::Data& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
-			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_item_type";
-			}
+		//	if (this->type == -1 && this->data.size() >= 1) {
+			//	throw "Error not valid json in add_item_type";
+		//	}
 
 			this->data.push_back(make_item_type(pool, name));
 			this->data.push_back(make_item_type(pool + 1, data));
 		}
 
-		void add_item_type(UserType* pool, const claujson::Data& data) {
+		__forceinline void add_item_type(UserType* pool, const claujson::Data& data) {
 			// todo - chk this->type == 0 (object) but name is empty
 			// todo - chk this->type == 1 (array) but name is not empty.
 
-			if (this->type == -1 && this->data.size() >= 1) {
-				throw "Error not valid json in add_item_type";
-			}
+			//if (this->type == -1 && this->data.size() >= 1) {
+			//	throw "Error not valid json in add_item_type";
+			//}
 
 			this->data.push_back(make_item_type(pool, data));
 		}
+		
 	public:
 
 		UserType*& get_data_list(size_t idx) {
@@ -891,7 +892,7 @@ namespace claujson {
 
 			UserType* pool = _pool + token_arr_start;
 
-			std::vector<Data> Vec;
+			std::vector<uint64_t*> Vec;
 
 			if (token_arr_len <= 0) {
 				*next = nullptr;
@@ -909,7 +910,7 @@ namespace claujson {
 
 			int64_t count = 0;
 
-			Data key;
+			uint64_t* key = nullptr;
 
 			for (int64_t i = 0; i < token_arr_len; ++i) {
 
@@ -929,15 +930,15 @@ namespace claujson {
 
 						if (!Vec.empty()) {
 
-							if (Vec[0].is_key) {
+							if (static_cast<simdjson::internal::tape_type>((*Vec[0]) >> 56) == simdjson::internal::tape_type::KEY) {
 								for (size_t x = 0; x < Vec.size(); x += 2) {
-									nestedUT[braceNum]->add_item_type(pool, std::move(Vec[x]), std::move(Vec[x + 1]));
+									nestedUT[braceNum]->add_item_type(pool, Convert(Vec[x], string_buf), Convert(Vec[x + 1], string_buf));
 									++pool; ++pool;
 								}
 							}
 							else {
 								for (size_t x = 0; x < Vec.size(); x += 1) {
-									nestedUT[braceNum]->add_item_type(pool, std::move(Vec[x]));
+									nestedUT[braceNum]->add_item_type(pool, Convert(Vec[x], string_buf));
 									++pool;
 								}
 							}
@@ -945,9 +946,9 @@ namespace claujson {
 							Vec.clear();
 						}
 
-						if (key.is_key) {
-							nestedUT[braceNum]->add_user_type(pool, std::move(key), type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1); // object vs array
-							key = Data(); ++pool;
+						if (key) {
+							nestedUT[braceNum]->add_user_type(pool, Convert(key, string_buf), type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1); // object vs array
+							key = nullptr; ++pool;
 						}
 						else {
 							nestedUT[braceNum]->add_user_type(pool, type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1);
@@ -986,14 +987,14 @@ namespace claujson {
 						if (!Vec.empty()) {
 							if (type == simdjson::internal::tape_type::END_OBJECT) {
 								for (size_t x = 0; x < Vec.size(); x += 2) {
-									nestedUT[braceNum]->add_item_type(pool, std::move(Vec[x]), std::move(Vec[x + 1]));
+									nestedUT[braceNum]->add_item_type(pool, Convert(Vec[x], string_buf), Convert(Vec[x + 1], string_buf));
 									++pool; ++pool;
 									
 								}
 							}
 							else { // END_ARRAY
 								for (size_t x = 0; x < Vec.size(); x += 1) {
-									nestedUT[braceNum]->add_item_type(pool, std::move(Vec[x]));
+									nestedUT[braceNum]->add_item_type(pool, Convert(Vec[x], string_buf));
 									++pool;
 								}
 							}
@@ -1046,9 +1047,9 @@ namespace claujson {
 					else {
 						{
 
-							Data data = Convert(&(token_arr[token_arr_start + i]), string_buf);
+							uint64_t* data = &token_arr[token_arr_start + i]; // Convert(&(token_arr[token_arr_start + i]), string_buf);
 							
-							if (data.is_key) {
+							if (type == simdjson::internal::tape_type::KEY) {
 								const simdjson::internal::tape_type _type =
 									static_cast<simdjson::internal::tape_type>((((token_arr)[token_arr_start + i + 1]) >> 56));
 								
@@ -1146,15 +1147,15 @@ namespace claujson {
 			}
 
 			if (Vec.empty() == false) {
-				if (Vec[0].is_key) {
+				if (static_cast<simdjson::internal::tape_type>((*Vec[0]) >> 56) == simdjson::internal::tape_type::KEY) {
 					for (size_t x = 0; x < Vec.size(); x += 2) {
-						nestedUT[braceNum]->add_item_type(pool, std::move(Vec[x]), std::move(Vec[x + 1]));
+						nestedUT[braceNum]->add_item_type(pool, Convert(Vec[x], string_buf), Convert(Vec[x + 1], string_buf));
 						++pool; ++pool;
 					}
 				}
 				else {
 					for (size_t x = 0; x < Vec.size(); x += 1) {
-						nestedUT[braceNum]->add_item_type(pool, std::move(Vec[x]));
+						nestedUT[braceNum]->add_item_type(pool, Convert(Vec[x], string_buf));
 						++pool;
 					}
 				}
@@ -1260,7 +1261,10 @@ namespace claujson {
 				std::vector<class UserType*> next(pivots.size() - 1, nullptr);
 				{
 
-					std::vector<class UserType> __global(pivots.size() - 1, UserType::make_none());
+					std::vector<class UserType> __global(pivots.size() - 1);
+					for (int i = 0; i < __global.size(); ++i) {
+						__global[i].type = -2;
+					}
 					
 					std::vector<std::thread> thr(pivots.size() - 1);
 

@@ -106,7 +106,7 @@ int main(int argc, char* argv[])
 
 	bool ok = nullptr != x;
 
-	ut.remove_all(poolManager);
+	//ut.remove_all(poolManager);
 	poolManager.Clear();
 	
 	return !ok;
