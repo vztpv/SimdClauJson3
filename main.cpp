@@ -62,30 +62,6 @@ void test() {
 	std::cout << "end\n";
 }
 
-void test2(claujson::UserType& ut) {
-	for (int i = 0; i < ut.get_data_size(); ++i) {
-		if (ut.is_array()) {
-			if (ut.get_data_list(i)->get_value().is_key) {
-				std::cout << "ERROR ";
-				claujson::LoadData::_save(std::cout, ut.get_data_list(i), 0);
-			}
-			test2(*ut.get_data_list(i));
-		}
-		else if (ut.is_object()) {
-			if (ut.get_data_list(i)->get_value().is_key == false) {
-				if (i > 0 && ut.get_data_list(i - 1)->get_value().is_key == true &&
-					ut.get_data_list(i - 1)->is_item_type()) {
-					//
-				}
-				else {
-					std::cout << "ERROR2 ";
-				}
-			}
-			test2(*ut.get_data_list(i));
-		}
-	}
-}
-
 int main(int argc, char* argv[])
 {
 	//test();
@@ -102,7 +78,7 @@ int main(int argc, char* argv[])
 	//claujson::LoadData::_save(std::cout, &ut);
 	//claujson::LoadData::save("output.json", ut);
 
-	test2(ut);
+	//test2(ut);
 
 	bool ok = nullptr != x;
 
