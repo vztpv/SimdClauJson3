@@ -29,7 +29,7 @@ namespace claujson {
 		UserType* pool = nullptr;
 		std::vector<Block> blocks;
 		UserType* dead_list_start = nullptr;
-		std::vector<UserType*> outOfPool; 
+		std::vector<UserType*> outOfPool;
 	public:
 		enum class Type {
 			FROM_STATIC = 0, // no dynamic allocation.
@@ -258,7 +258,7 @@ namespace claujson {
 		ItemType(const ItemType& other) : key(other.key), data(other.data) {
 			//
 		}
-		ItemType(ItemType&& other) : key(std::move(other.key)), data(std::move(other.data)) 
+		ItemType(ItemType&& other) : key(std::move(other.key)), data(std::move(other.data))
 		{
 			//
 		}
@@ -269,7 +269,7 @@ namespace claujson {
 
 			return *this;
 		}
-		
+
 		ItemType& operator=(const ItemType& other) {
 			key = (other.key);
 			data = (other.data);
@@ -286,7 +286,7 @@ namespace claujson {
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
 			return pool;
 		}
-		
+
 		inline UserType* make_user_type(UserType* pool, const Data& name, int type) const {
 			new (pool) UserType(ItemType(name, Data()), type);
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
@@ -298,7 +298,7 @@ namespace claujson {
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
 			return pool;
 		}
-		
+
 		inline UserType* make_item_type(UserType* pool, const Data& name, const Data& data) const {
 			new (pool) UserType(ItemType(name, data), 4);
 			pool->alloc_type = PoolManager::Type::FROM_POOL;
@@ -990,7 +990,7 @@ namespace claujson {
 							if (type == simdjson::internal::tape_type::END_OBJECT) {
 								for (size_t x = 0; x < Vec.size(); x += 2) {
 									nestedUT[braceNum]->add_item_type(pool, Convert(Vec[x], string_buf), Convert(Vec[x + 1], string_buf));
-									++pool; 
+									++pool;
 
 								}
 							}
@@ -1147,7 +1147,7 @@ namespace claujson {
 				if (static_cast<simdjson::internal::tape_type>((*Vec[0]) >> 56) == simdjson::internal::tape_type::KEY) {
 					for (size_t x = 0; x < Vec.size(); x += 2) {
 						nestedUT[braceNum]->add_item_type(pool, Convert(Vec[x], string_buf), Convert(Vec[x + 1], string_buf));
-						++pool; 
+						++pool;
 					}
 				}
 				else {
@@ -1291,7 +1291,7 @@ namespace claujson {
 						thr[i].join();
 					}
 
-					for (int i = 0; i < start.size() - 1; ++i) {
+					for (int i = 0; i < pivots.size() - 1; ++i) { // bug fix
 						blocks.push_back(Block{ after_pool[i] - pool, start[i + 1] - (after_pool[i] - pool) });
 					}
 
@@ -1327,7 +1327,7 @@ namespace claujson {
 						auto x = next.begin();
 						auto y = __global.begin();
 						while (true) {
-							if (y->get_data_size() + y->get_data_size() == 0) {
+							if (y->get_data_size() == 0) {
 								chk[i] = 1;
 							}
 
