@@ -171,7 +171,9 @@ namespace claujson {
 				this->set_str_val(*other.get_str_val());
 			}
 			else {
-				delete this->str_val;
+				if (this->str_val) {
+					delete this->str_val;
+				}
 				this->str_val = nullptr;
 			}
 			this->is_key = other.is_key;
